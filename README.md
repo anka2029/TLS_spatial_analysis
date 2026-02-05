@@ -116,7 +116,7 @@ source("scripts/04_PMN_validation.R")  # Optional: requires scRNA-seq data
 
 ## 📊 Analysis Pipeline
 
-### Script 00: Prepare input for EcoTyper bulk mode
+### Script 00: Prepare input for EcoTyper bulk mode (optional)
 
 **Purpose**: 
 This script generates pseudo-bulk gene expression profiles by averaging Visium spot-level expression within TLS and Non-TLS regions for each sample.
@@ -129,12 +129,12 @@ This script generates pseudo-bulk gene expression profiles by averaging Visium s
 - TLS spots are labeled by a pathologist
 
 **Key outputs**:
-`gene_avg_by_sample.txt`
-- Gene expression matrix (genes x samples)
-- Columns: sample_TLS / sample_NonTLS
-`sample_histology.txt`
-- Metadata file mapping each column to:
-- TLS or NonTLS
+- `gene_avg_by_sample.txt`
+    - Gene expression matrix (genes x samples)
+    - Columns: sample_TLS / sample_NonTLS
+- `sample_histology.txt`
+    - Metadata file mapping each column to:
+    - TLS or NonTLS
 These two files are used as direct input for EcoTyper bulk mode.
 
 **Runtime**: ~2 minutes
@@ -154,12 +154,12 @@ These two files are used as direct input for EcoTyper bulk mode.
 - Effect size calculation
 
 **Key outputs**:
-- 01_Ecotype_TLS_comparison_with_pvalues.pdf
-    Figures comparing CE abundance in TLS vs NonTLS 
-- 01_CE9_CE10_MannWhitney_boxplot.pdf
-    CE9 / CE10 TLS association statistics
-- 01_CE_abundance_from_TLS.pdf
-    Spatial CE abundance gradient plots relative to TLS distance 
+- `01_Ecotype_TLS_comparison_with_pvalues.pdf`
+    - Figures comparing CE abundance in TLS vs NonTLS 
+- `01_CE9_CE10_MannWhitney_boxplot.pdf`
+    - CE9 / CE10 TLS association statistics
+- `01_CE_abundance_from_TLS.pdf`
+    - Spatial CE abundance gradient plots relative to TLS distance 
 
 **Runtime**: ~2-5 minutes
 
@@ -180,19 +180,19 @@ These two files are used as direct input for EcoTyper bulk mode.
 - Gene Ontology enrichment for TLS-enriched states
 
 **Key outputs**:
-- 02_Impact_of_cell_states.pdf
-    Barplot of cell state impact on TLS (median |β| and fraction significant spots)   
-- 02_macrophage_spatial_associations.pdf
-    Macrophages S01 vs S08 local regression coefficients across samples shows consistent positive association of S01 with TLS
-- 02_Tcell_Plasmacell_analysis.pdf
-    Violin plots of local coefficient distributions (CD8+ T S01, CD4+ T S02, PC S01)
-    Statistical significance vs effect size scatter plots
-- 02_spatial_distribution.pdf
-    Spatial visualization of CD4+ T S02, CD8+ T S01, PC S01, and cancer cells
-    B26 sample with TLS regions outlined in red
-- 02_go_plot.pdf
-    GO enrichment analysis (Biological Process) for high-abundance spot DEGs
-    Functional characterization of CD8+ T S01, CD4+ T S02, and PC S01
+- `02_Impact_of_cell_states.pdf`
+    - Barplot of cell state impact on TLS (median |β| and fraction significant spots)   
+- `02_macrophage_spatial_associations.pdf`
+    - Macrophages S01 vs S08 local regression coefficients across samples shows consistent positive association of S01 with TLS
+- `02_Tcell_Plasmacell_analysis.pdf`
+    - Violin plots of local coefficient distributions (CD8+ T S01, CD4+ T S02, PC S01)
+    - Statistical significance vs effect size scatter plots
+- `02_spatial_distribution.pdf`
+    - Spatial visualization of CD4+ T S02, CD8+ T S01, PC S01, and cancer cells
+    - B26 sample with TLS regions outlined in red
+- `02_go_plot.pdf`
+    - GO enrichment analysis (Biological Process) for high-abundance spot DEGs
+    - Functional characterization of CD8+ T S01, CD4+ T S02, and PC S01
   
 **Runtime**: 
 - With pre-computed results: ~5-10 minutes
@@ -217,10 +217,10 @@ These two files are used as direct input for EcoTyper bulk mode.
 - Community detection for hub identification
 
 **Key outputs**:
-- 03_*_Network_Prominence.pdf, 3 files
-  Network prominence plots
-- 03_*_Hub_community.pdf, 3 files 
-  Hub community chord diagrams
+- `03_*_Network_Prominence.pdf`, 3 files
+  - Network prominence plots
+- `03_*_Hub_community.pdf`, 3 files 
+  - Hub community chord diagrams
 - Chord diagrams for L-R interactions
 - GO enrichment for network communities
 
