@@ -129,12 +129,12 @@ This script generates pseudo-bulk gene expression profiles by averaging Visium s
 - TLS spots are labeled by a pathologist
 
 **Key outputs**:
-- gene_avg_by_sample.txt 
-   Gene expression matrix (genes x samples)
-   Columns: sample_TLS / sample_NonTLS
-- sample_histology.txt
-   Metadata file mapping each column to:
-   TLS or NonTLS
+`gene_avg_by_sample.txt`
+- Gene expression matrix (genes x samples)
+- Columns: sample_TLS / sample_NonTLS
+`sample_histology.txt`
+- Metadata file mapping each column to:
+- TLS or NonTLS
 These two files are used as direct input for EcoTyper bulk mode.
 
 **Runtime**: ~2 minutes
