@@ -281,12 +281,8 @@ SOFTWARE.
 
 ## 🙏 Acknowledgments
 
-- Tsunoda-sensei and Artem-sensei for supervision and manuscript guidance
-- Tanaka-sensei and Iwasawa-sensei (Keio University Hospital) for scRNA-seq data
-- Suzuki-san (Kyoto University) for Xenium collaboration
-- All members of the lab for helpful discussions
 
 ---
 
-**Last updated**: February 2025  
+**Last updated**: February 2026  
 **Status**: Active development | Manuscript in revision
