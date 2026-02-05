@@ -252,20 +252,8 @@ These two files are used as direct input for EcoTyper bulk mode.
 
 ## 🔍 Data Format
 
-See [data/example_data/DATA_STRUCTURE.md](data/example_data/DATA_STRUCTURE.md) for detailed specifications.
+See [data/example_data/DATA_STRUCTURE.md](data/example_data/DATA_STRUCTURE.md) for detailed specifications of all the provided and used files in this page.
 
-**combined_obj** structure (Seurat-based):
-```r
-combined_obj <- list(
-  "Sample1" = list(
-    cellstate_raw  = data.frame(ID, pixel_x, pixel_y, Label, cell_states...),
-    cellstate_norm = data.frame(normalized abundances),
-    ecotype        = data.frame(CE1-CE10 abundances),
-    hs             = dgCMatrix(genes × spots expression)
-  ),
-  "Sample2" = ...
-)
-```
 
 ## 📝 Citation
 
