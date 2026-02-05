@@ -97,9 +97,8 @@ BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "ComplexHeatmap"))
 ### 3. Download Data
 
 **Full dataset (DOWNLOAD REQUIRED)**
-- All cancer samples (breast, kidney, cervical, prostate, melanoma)
-- Complete analysis and validation
 - File: `combined_obj.RData` (4.3 GB)
+- All processed cancer samples (breast, kidney, cervical, prostate)
 - **Download instructions**: See [data/example_data/DOWNLOAD.md](data/example_data/DOWNLOAD.md)
 
 ### 4. Run Analysis
