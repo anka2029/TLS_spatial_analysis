@@ -97,9 +97,11 @@ BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "ComplexHeatmap"))
 ### 3. Download Data
 
 **Full dataset (DOWNLOAD REQUIRED)**
-- File: `combined_obj.RData` (4.3 GB)
-- All processed cancer samples (breast, kidney, cervical, prostate)
-- **Download instructions**: See [data/example_data/DOWNLOAD.md](data/example_data/DOWNLOAD.md)
+- Due to file size limitations, only the file `combined_obj.RData` (4.3 GB) is not included in this repository. 
+- It contains all processed cancer samples (breast, kidney, cervical, prostate)
+**Download instructions**
+- For complete analysis down the full dataset from Zenodo 
+- https://doi.org/10.5281/zenodo.18490685
 
 ### 4. Run Analysis
 ```r
