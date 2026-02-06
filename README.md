@@ -132,9 +132,8 @@ This script generates pseudo-bulk gene expression profiles by averaging Visium s
     - Gene expression matrix (genes x samples)
     - Columns: sample_TLS / sample_NonTLS
 - `sample_histology.txt`
-    - Metadata file mapping each column to:
-    - TLS or NonTLS
-These two files are used as direct input for EcoTyper bulk mode.
+    - Metadata file mapping each column to: TLS or NonTLS
+- These two files are used as direct input for EcoTyper bulk mode.
 
 **Runtime**: ~2 minutes
 
@@ -145,7 +144,8 @@ These two files are used as direct input for EcoTyper bulk mode.
 **Purpose**: Identify cell states and ecotypes enriched in TLS regions
 
 **Input**:
-- `EcoTyper_Output/Ecotypes/ecotype_abundance.txt`
+- `EcoTyper_Output/Ecotypes/ecotype_abundance.txt` (EcoTyper bulk mode result of pseudo-bulk profiles generated from last step)
+- `combined_obj.RData`
 
 **Methods**:
 - Wilcoxon rank-sum test for TLS vs non-TLS comparison
@@ -164,7 +164,7 @@ These two files are used as direct input for EcoTyper bulk mode.
 
 ---
 
-### Script 02: Geographically Weighted Regression Analysis
+### Script 02: GWR(Geographically Weighted Regression) Analysis
 
 **Purpose**: Model spatial enrichment patterns of cell states related to TLS presence
 
