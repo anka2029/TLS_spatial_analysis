@@ -20,7 +20,6 @@ TLS_spatial_analysis/
 ├── data/
 │   └── example_data/
 │       ├── DATA_STRUCTURE.md          # Detailed data format specifications
-│       ├── DOWNLOAD.md                # Instructions for full dataset download
 │       ├── all_marker_gene.rds        # EcoTyper cell state markers (56 KB)
 │       ├── combined_obj.RData         # Full dataset (DOWNLOAD SEPARATELY, 4.3 GB)
 │       ├── gwr_results.RData          # Pre-computed GWR models (91 MB)
