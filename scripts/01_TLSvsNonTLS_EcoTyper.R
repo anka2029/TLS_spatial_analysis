@@ -399,6 +399,13 @@ df_value_labels <- df_bin_avg_styled %>%
   mutate(label_text = sprintf("%.2f", mean))
 
 # Create plot
+ce_colors <- c(
+  "CE1" = "gray70", "CE2" = "gray70", "CE3" = "gray70",
+  "CE4" = "gray70", "CE5" = "gray70", "CE6" = "gray70",
+  "CE7" = "gray70", "CE8" = "gray70", 
+  "CE10" = "#2E86C1", "CE9" = "#5DADE2"
+)
+
 p1_with_value_labels <- ggplot(df_bin_avg_styled, 
                                aes(x = dist_category, y = mean, group = CE)) +
   geom_line(data = df_bin_avg_styled %>% filter(!is_highlight),
@@ -423,7 +430,7 @@ p1_with_value_labels <- ggplot(df_bin_avg_styled,
     size          = 3,
     fontface      = "bold",
     label.padding = unit(0.15, "lines"),
-    label.size    = 0.2,
+    linewidth    = 0.2,
     show.legend   = FALSE
   ) +
   geom_segment(
@@ -464,7 +471,10 @@ p1_with_value_labels <- ggplot(df_bin_avg_styled,
     plot.margin   = margin(10, 10, 10, 60)
   )
 
-ggsave(plot = p1_with_value_labels, file = "../output/01_CE_abundance_from_TLS.pdf")
+ggsave(plot = p1_with_value_labels, file = "../output/01_CE_abundance_from_TLS.pdf",
+       width    = 10,
+       height   = 12,
+       dpi      = 300)
 
 
 # ============================================================================

@@ -139,7 +139,7 @@ cat("Selected states for GWR:", paste(final_states, collapse = ", "), "\n")
 
 gwr_cand <- list()
 ###This process takes long time, you can load the prepared gwr_results for following analysis.
-###load("../data/example_data/gwr_results.RData")
+#load("../data/example_data/gwr_results.RData")
 for (samp in names(combined_obj)) {
   cs <- combined_obj[[samp]]$cellstate_norm %>% na.omit()
   if (!"TLS" %in% cs$Label) next
@@ -246,7 +246,7 @@ print(var_summary)
 plot_df_impact <- var_summary %>%
   filter(Variable != "Intercept") %>%
   mutate(
-    pct_label = percent(prop_sig, accuracy = 1),
+    pct_label = scales::percent(prop_sig, accuracy = 1),
     label_x = med_coef + if_else(med_coef > 0, 0.02, -0.02),
     hjust_val = if_else(med_coef > 0, 0, 1)
   )
@@ -280,7 +280,10 @@ p_impact <- ggplot(plot_df_impact, aes(
   )
 
 suppressWarnings(
-ggsave(plot = p_impact,file = "../output/02_Impact_of_cell_states.pdf"))
+ggsave(plot = p_impact,file = "../output/02_Impact_of_cell_states.pdf", 
+       width    = 10,
+       height   = 12,
+       dpi      = 300))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -328,7 +331,10 @@ sig_macro_plot <- sig_coef %>%
 
 print(sig_macro_plot)
 suppressWarnings(
-  ggsave(plot = sig_macro_plot, file = "../output/02_macrophage_spatial_associations.pdf"))
+  ggsave(plot = sig_macro_plot, file = "../output/02_macrophage_spatial_associations.pdf",
+         width    = 10,
+         height   = 12,
+         dpi      = 300))
 
 
 
@@ -427,7 +433,10 @@ combined_tcell_plot <- plot1 / plot2 +
 
 print(combined_tcell_plot)
 suppressWarnings(
-  ggsave(plot = combined_tcell_plot, file = "../output/02_Tcell_Plasmacell_analysis.pdf")
+  ggsave(plot = combined_tcell_plot, file = "../output/02_Tcell_Plasmacell_analysis.pdf",
+         width    = 10,
+         height   = 12,
+         dpi      = 300)
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -514,7 +523,10 @@ spatial_combined <- (p_cd4 | p_cd8 | p_pc | p_cancer) +
 
 print(spatial_combined)
 suppressWarnings(
-  ggsave(plot = spatial_combined, file = "../output/02_spatial_distribution.pdf")
+  ggsave(plot = spatial_combined, file = "../output/02_spatial_distribution.pdf",
+         width    = 16,
+         height   = 10,
+         dpi      = 300)
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
