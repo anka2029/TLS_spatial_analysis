@@ -68,12 +68,292 @@ conflict_prefer("E", "igraph")
 conflict_prefer("strength", "igraph")
 conflict_prefer("degree", "igraph")
 # =============================================================================
-# 2. DATA LOADING AND REORGANIZATION
+# DATA LOADING AND REORGANIZATION
 # =============================================================================
 
 # Load individual LR analysis results
 load("../data/example_data/combined_obj.RData")
 load("../data/example_data/LR_analysis.RData")
+
+# =============================================================================
+# 2. Compute ligand-receptor network analysis 
+# (This may take long time, please use preload LR_analysis.RData for the following analysis)
+# =============================================================================
+
+# LIGAND-RECEPTOR NETWORK ANALYSIS FUNCTION
+analyze_LR_network <- function(combined_obj, 
+                               ligand_gene, 
+                               receptor_gene,
+                               lambda = 200,
+                               quant_thr = 0.9,
+                               sample_id = NULL) {
+  
+  # If sample_id provided, analyze single sample; otherwise analyze all samples
+  if (!is.null(sample_id)) {
+    # Single sample analysis
+    samples <- sample_id
+  } else {
+    # All samples
+    samples <- names(combined_obj)
+  }
+  
+  results <- list()
+  
+  for (sid in samples) {
+    message("▶ ", sid)
+    
+    # Extract metadata and filter for TLS regions
+    meta <- combined_obj[[sid]]$cellstate_norm
+    rownames(meta) <- meta$ID
+    tls_ids <- meta$ID[meta$Label == "TLS"]
+    
+    if (length(tls_ids) == 0) {
+      message("  (no TLS, skipping)")
+      next
+    }
+    
+    cell_states <- grep("_S\\d{2}$", colnames(meta), value = TRUE)
+    
+    # Extract expression matrix and coordinates
+    expr <- as.matrix(combined_obj[[sid]]$hs)[, tls_ids]
+    meta_t <- meta[tls_ids, ]
+    cellmat <- as.matrix(meta_t[, cell_states])
+    coords <- as.matrix(meta_t[, c("pixel_x", "pixel_y")])
+    
+    # Check gene presence
+    all_genes <- c(ligand_gene, receptor_gene)
+    if (!all(all_genes %in% rownames(expr))) {
+      missing <- setdiff(all_genes, rownames(expr))
+      message("  (", paste(missing, collapse = ", "), " absent, skipping)")
+      next
+    }
+    
+    # Handle single or multiple ligands
+    if (length(ligand_gene) == 1) {
+      ligand <- as.numeric(expr[ligand_gene, ])
+    } else {
+      ligand <- colMeans(expr[ligand_gene, , drop = FALSE])
+    }
+    receptor <- as.numeric(expr[receptor_gene, ])
+    
+    # Skip if no expression
+    if (sum(ligand) == 0 || sum(receptor) == 0) {
+      message("  (ligand or receptor expression all zero, skipping)")
+      next
+    }
+    
+    # Calculate spatially-weighted interaction scores
+    wmat <- exp(-as.matrix(dist(coords)) / lambda)
+    ncs <- length(cell_states)
+    score <- matrix(0, ncs, ncs, dimnames = list(cell_states, cell_states))
+    
+    for (i in seq_len(ncs)) {
+      for (j in seq_len(ncs)) {
+        send <- ligand * cellmat[, i]
+        recv <- receptor * cellmat[, j]
+        score[i, j] <- sum(outer(send, recv) * wmat)
+      }
+    }
+    
+    # Build network graph
+    edges <- as.data.frame(as.table(score))
+    names(edges) <- c("sender", "receiver", "score")
+    edges <- edges[edges$score >= quantile(edges$score, quant_thr), ]
+    
+    g <- igraph::graph_from_data_frame(edges, directed = TRUE)
+    
+    # Community detection
+    if (vcount(g) > 2) {
+      mem <- igraph::cluster_louvain(igraph::as.undirected(g))$membership
+    } else {
+      mem <- rep(1, vcount(g))
+    }
+    V(g)$community <- mem
+    
+    # Calculate centrality metrics
+    V(g)$degree <- degree(g, mode = "all")
+    V(g)$betweenness <- betweenness(g, directed = TRUE)
+    V(g)$pagerank <- page.rank(g)$vector
+    
+    node_metrics <- data.frame(
+      cell_state = V(g)$name,
+      degree = degree(g, mode = "all"),
+      betweenness = betweenness(g, directed = TRUE),
+      pagerank = page.rank(g)$vector,
+      community = as.factor(mem)
+    )
+    
+    # Store results
+    results[[sid]] <- list(
+      score = score,
+      edge_list = edges,
+      node_metrics = node_metrics,
+      graph = g
+    )
+  }
+  
+  return(results)
+}
+
+
+# VISUALIZATION FUNCTION FOR SINGLE SAMPLE
+plot_LR_network <- function(graph_obj, ligand_gene, receptor_gene, 
+                            sample_id = NULL, enhanced = FALSE) {
+  
+  g <- graph_obj$graph
+  ligand_name <- paste(ligand_gene, collapse = "/")
+  
+  title <- if (!is.null(sample_id)) {
+    paste0("Network of ", ligand_name, "–", receptor_gene, " Communication in ", sample_id)
+  } else {
+    paste0("Network of ", ligand_name, "–", receptor_gene, " Communication")
+  }
+  
+  # Base plot or enhanced plot
+  if (enhanced) {
+    p <- ggraph(g, layout = "kk") +
+      geom_edge_link(aes(edge_alpha = score, edge_width = score, edge_color = score),
+                     arrow = arrow(length = unit(6, "mm")),
+                     end_cap = circle(5, "mm"),
+                     edge_curved = 0.2) +
+      geom_node_point(aes(size = degree, color = as.factor(community)), 
+                      show.legend = TRUE) +
+      geom_node_text(aes(label = paste(name, "(", degree, ")", sep = "")),
+                     repel = TRUE,
+                     size = 6,
+                     fontface = "bold") +
+      scale_size_continuous(range = c(6, 18)) +
+      scale_edge_color_gradient(
+        low = "lightblue", high = "darkblue",
+        name = "Interaction score"
+      ) +
+      scale_edge_width(
+        range = c(0.5, 4),
+        name = "Interaction score"
+      ) +
+      scale_edge_alpha(
+        range = c(0.4, 1),
+        name = "Interaction score"
+      ) +
+      theme_graph(base_size = 16) +
+      theme(
+        plot.title = element_text(size = 18, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12)
+      ) +
+      ggtitle(title)
+  } else {
+    p <- ggraph(g, layout = "kk") +
+      geom_edge_link(aes(edge_alpha = score, edge_width = score, edge_color = score),
+                     arrow = arrow(length = unit(4, "mm")),
+                     end_cap = circle(3, "mm"),
+                     edge_curved = 0.2) +
+      geom_node_point(aes(size = degree, color = as.factor(community)), 
+                      show.legend = TRUE) +
+      geom_node_text(aes(label = paste(name, "(", degree, ")", sep = "")),
+                     repel = TRUE, size = 4) +
+      scale_size_continuous(range = c(4, 12)) +
+      scale_edge_color_gradient(
+        low = "lightblue", high = "darkblue",
+        name = "Interaction score"
+      ) +
+      scale_edge_width(
+        range = c(0.2, 3),
+        name = "Interaction score"
+      ) +
+      scale_edge_alpha(
+        range = c(0.3, 1),
+        name = "Interaction score"
+      ) +
+      theme_graph() +
+      ggtitle(title)
+  }
+  
+  return(p)
+}
+
+
+# SINGLE SAMPLE EXAMPLES
+## ─── CXCL13-CXCR5 Single Sample Example ───
+{
+  result_135_B26 <- analyze_LR_network(
+    combined_obj = combined_obj,
+    ligand_gene = "CXCL13",
+    receptor_gene = "CXCR5",
+    sample_id = "B26"
+  )
+  
+  # Plot
+  print(plot_LR_network(result_135_B26$B26, 
+                        ligand_gene = "CXCL13", 
+                        receptor_gene = "CXCR5",
+                        sample_id = "B26"))
+}
+
+## ─── CCL19/21-CCR7 Single Sample Example ───
+{
+  result_19217_B26 <- analyze_LR_network(
+    combined_obj = combined_obj,
+    ligand_gene = c("CCL19", "CCL21"),
+    receptor_gene = "CCR7",
+    sample_id = "B26"
+  )
+  
+  # Plot with enhanced visualization
+  print(plot_LR_network(result_19217_B26$B26, 
+                        ligand_gene = c("CCL19", "CCL21"), 
+                        receptor_gene = "CCR7",
+                        sample_id = "B26",
+                        enhanced = TRUE))
+}
+
+## ─── CXCL12-CXCR4 Single Sample Example ───
+{
+  result_124_B26 <- analyze_LR_network(
+    combined_obj = combined_obj,
+    ligand_gene = "CXCL12",
+    receptor_gene = "CXCR4",
+    sample_id = "B26"
+  )
+  
+  # Plot with enhanced visualization
+  print(plot_LR_network(result_124_B26$B26, 
+                        ligand_gene = "CXCL12", 
+                        receptor_gene = "CXCR4",
+                        sample_id = "B26",
+                        enhanced = TRUE))
+}
+
+
+# BATCH PROCESSING FOR ALL THREE CHEMOKINE AXES
+LR_analysis <- list()
+
+## ─── CXCL13-CXCR5 All Samples ───
+message("\n========== Analyzing CXCL13-CXCR5 axis ==========")
+LR_analysis$CXCL13_CXCR5 <- analyze_LR_network(
+  combined_obj = combined_obj,
+  ligand_gene = "CXCL13",
+  receptor_gene = "CXCR5"
+)
+
+## ─── CCL19/21-CCR7 All Samples ───
+message("\n========== Analyzing CCL19/21-CCR7 axis ==========")
+LR_analysis$CCL19_21_CCR7 <- analyze_LR_network(
+  combined_obj = combined_obj,
+  ligand_gene = c("CCL19", "CCL21"),
+  receptor_gene = "CCR7"
+)
+
+## ─── CXCL12-CXCR4 All Samples ───
+message("\n========== Analyzing CXCL12-CXCR4 axis ==========")
+LR_analysis$CXCL12_CXCR4 <- analyze_LR_network(
+  combined_obj = combined_obj,
+  ligand_gene = "CXCL12",
+  receptor_gene = "CXCR4"
+)
+
+
+
 
 # =============================================================================
 # 3. CROSS-SAMPLE ANALYSIS FUNCTIONS
@@ -723,7 +1003,7 @@ hubness_results <- list(
   CCL19_21_CCR7 = plot_hubness_analysis(LR_analysis$CCL19_21_CCR7, "CCL19/21–CCR7")
 )
 
-# Display plots
+# Save plots
 suppressWarnings({
   ggsave(hubness_results$CXCL13_CXCR5$plot, file = "../output/03_CXCL13-CXCR5_Network_Prominence.pdf",
          width      = 10,
@@ -748,9 +1028,9 @@ suppressWarnings({
 
 # Identify hub modules
 hub_modules <- list(
-  CXCL13_CXCR5 = get_hub_modules(LR_analysis$CXCL13_CXCR5, top_n = 20),
+  CXCL13_CXCR5 = get_hub_modules(LR_analysis$CXCL13_CXCR5, top_n = 15),
   CXCL12_CXCR4 = get_hub_modules(LR_analysis$CXCL12_CXCR4, top_n = 15),
-  CCL19_21_CCR7 = get_hub_modules(LR_analysis$CCL19_21_CCR7, top_n = 20)
+  CCL19_21_CCR7 = get_hub_modules(LR_analysis$CCL19_21_CCR7, top_n = 15)
 )
 
 # Draw chord diagrams

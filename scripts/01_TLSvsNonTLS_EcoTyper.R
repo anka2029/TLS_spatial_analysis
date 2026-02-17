@@ -18,7 +18,7 @@
 #       A named list of Visium samples.With output of EcoTyper Visium mode.
 #       Each element must contain:
 #         - $cellstate_raw or $cellstate_norm(cell state abundance normalized)
-#             (ID, pixel_x, pixel_y, Label [TLS / NonTLS])
+#             (ID, array_x, array_y, Label [TLS / NonTLS])
 #         - $ecotype
 #             (spot-level CE1–CE10 abundance)
 #         - $hs
@@ -182,7 +182,7 @@ for (samp_name in names(combined_obj)) {
 ## ── 2.2 Combine all samples ──────────────────────────────────────────────
 ce_tls_list <- bind_rows(res_list)
 
-## ── 2.3 Mann-Whitney U test ────────────────────────
+## ── 2.3 Mann-Whitney U test ────────────────────────────────
 # Prepare data in long format
 ce_long <- ce_tls_list %>%
   filter(!is.na(CE9) & !is.na(CE10)) %>%
@@ -244,39 +244,46 @@ ggsave(plot = p,filename = "../output/01_CE9_CE10_MannWhitney_boxplot.pdf", widt
 
 
 # ============================================================================
-# PART 3: Distance-Based Analysis (Unified Physical Distance)
+# PART 3: Distance-Based Analysis (Array Coordinates)
 # ============================================================================
 
-## ── 3.1 Calculate distances (same as Part 3.1) ───────────────────────────
+## ── 3.1 Calculate distances using array coordinates ──────────────────────
 df_list <- lapply(names(combined_obj), function(samp) {
   samp_obj <- combined_obj[[samp]]
   if (is.null(samp_obj$cellstate_norm) || is.null(samp_obj$ecotype)) return(NULL)
   
-  cs  <- samp_obj$cellstate_norm %>% select(ID, pixel_x, pixel_y, Label)
+  # MODIFIED: Use array_x and array_y
+  cs  <- samp_obj$cellstate_norm %>% select(ID, array_x, array_y, Label)
   eco <- samp_obj$ecotype %>% 
     as.data.frame() %>% 
     select(ID, paste0("CE", 1:10))
   
   df <- inner_join(cs, eco, by = "ID") %>% mutate(Sample = samp)
   
-  # Get TLS coordinates
-  tls_coords <- df %>% filter(Label == "TLS") %>% select(pixel_x, pixel_y)
+  # Get TLS coordinates (array-based)
+  tls_coords <- df %>% filter(Label == "TLS") %>% select(array_x, array_y)
   
   # Handle samples without TLS
   if (nrow(tls_coords) == 0) {
     df$dist_to_TLS <- NA
+    df$dist_to_TLS_um <- NA
     return(df)
   }
   
-  # Calculate distance
+  # Calculate distance in array units
+  # Each array unit = 100 μm (Visium standard spot spacing)
   df$dist_to_TLS <- apply(
-    df[, c("pixel_x", "pixel_y")], 1,
+    df[, c("array_x", "array_y")], 1,
     function(pt) {
-      d <- sqrt((tls_coords$pixel_x - pt[1])^2 + 
-                  (tls_coords$pixel_y - pt[2])^2)
+      d <- sqrt((tls_coords$array_x - pt[1])^2 + 
+                  (tls_coords$array_y - pt[2])^2)
       min(d, na.rm = TRUE)
     }
   )
+  
+  # ADDED: Convert to physical distance in micrometers
+  df$dist_to_TLS_um <- df$dist_to_TLS * 100
+  
   df
 })
 df_all <- bind_rows(df_list)
@@ -309,25 +316,47 @@ dist_summary <- df_all %>%
     sd     = sd(dist_to_TLS, na.rm = TRUE)
   )
 
-print("Distance distribution (in pixels):")
-print(dist_summary)
+# MODIFIED: Updated description
+dist_summary_um <- dist_summary * 100
+print("\nDistance distribution (in micrometers):")
+print(dist_summary_um)
 
-## ── 3.4 Bin by unified physical distance ─────────────────────────────────
-# Option 1: Quartile-based thresholds (rounded values)
+## ── 3.4 Bin by distance (quartile-based) ────────────────────────────────
+# MODIFIED: Calculate quartiles dynamically from actual data
+all_distances <- df_all %>%
+  filter(Sample %in% valid_samples, dist_to_TLS > 0) %>%
+  pull(dist_to_TLS)
+
+# Calculate quartiles
+q25 <- quantile(all_distances, 0.25, na.rm = TRUE)
+q50 <- quantile(all_distances, 0.50, na.rm = TRUE)
+q75 <- quantile(all_distances, 0.75, na.rm = TRUE)
+
+cat("\nDistance thresholds (array units):\n")
+cat(sprintf("Q25: %.1f (%.0f \u03BCm)\n", q25, q25 * 100))
+cat(sprintf("Q50: %.1f (%.0f \u03BCm)\n", q50, q50 * 100))
+cat(sprintf("Q75: %.1f (%.0f \u03BCm)\n", q75, q75 * 100))
+
+# Apply dynamic binning
 df_binned <- df_all %>%
   filter(Sample %in% valid_samples) %>%
   mutate(
     dist_category = case_when(
-      dist_to_TLS == 0            ~ "TLS (0)",
-      dist_to_TLS <= 750          ~ "Near (<750)",         # ~Q25
-      dist_to_TLS <= 1750         ~ "Medium (750-1750)",   # ~Median
-      dist_to_TLS <= 3000         ~ "Far (1750-3000)",     # ~Q75
-      dist_to_TLS > 3000          ~ "Very Far (>3000)",
-      TRUE                        ~ NA_character_
+      dist_to_TLS == 0     ~ sprintf("TLS (0)"),
+      dist_to_TLS <= q25   ~ sprintf("Near (<%.0f \u03BCm)", q25 * 100),
+      dist_to_TLS <= q50   ~ sprintf("Medium (%.0f-%.0f \u03BCm)", q25 * 100, q50 * 100),
+      dist_to_TLS <= q75   ~ sprintf("Far (%.0f-%.0f \u03BCm)", q50 * 100, q75 * 100),
+      dist_to_TLS > q75    ~ sprintf("Very Far (>%.0f \u03BCm)", q75 * 100),
+      TRUE                 ~ NA_character_
     ),
     dist_category = factor(dist_category, 
-                           levels = c("TLS (0)", "Near (<750)", "Medium (750-1750)", 
-                                      "Far (1750-3000)", "Very Far (>3000)"))
+                           levels = c(
+                             sprintf("TLS (0)"),
+                             sprintf("Near (<%.0f \u03BCm)", q25 * 100),
+                             sprintf("Medium (%.0f-%.0f \u03BCm)", q25 * 100, q50 * 100),
+                             sprintf("Far (%.0f-%.0f \u03BCm)", q50 * 100, q75 * 100),
+                             sprintf("Very Far (>%.0f \u03BCm)", q75 * 100)
+                           ))
   ) %>%
   filter(!is.na(dist_category))
 
@@ -406,6 +435,7 @@ ce_colors <- c(
   "CE10" = "#2E86C1", "CE9" = "#5DADE2"
 )
 
+# MODIFIED: Updated plot labels
 p1_with_value_labels <- ggplot(df_bin_avg_styled, 
                                aes(x = dist_category, y = mean, group = CE)) +
   geom_line(data = df_bin_avg_styled %>% filter(!is_highlight),
@@ -453,9 +483,9 @@ p1_with_value_labels <- ggplot(df_bin_avg_styled,
   coord_cartesian(clip = "off") +
   labs(
     title    = "CE Abundance Gradient from TLS",
-    subtitle = sprintf("Physical distance categories (n=%d samples with TLS) | CE9 & CE10 highlighted", 
+    subtitle = sprintf("Array-based distance categories (n=%d samples with TLS, Visium spacing: 100 μm) | CE9 & CE10 highlighted", 
                        length(valid_samples)),
-    x        = "Distance from TLS (pixels)",
+    x        = "Distance from TLS",
     y        = "Mean CE Abundance ± SE"
   ) +
   theme_bw(base_size = 14) +
@@ -472,9 +502,10 @@ p1_with_value_labels <- ggplot(df_bin_avg_styled,
   )
 
 ggsave(plot = p1_with_value_labels, file = "../output/01_CE_abundance_from_TLS.pdf",
-       width    = 10,
+       width    = 8,
        height   = 12,
-       dpi      = 300)
+       dpi      = 300,
+       device   = cairo_pdf)
 
 
 # ============================================================================

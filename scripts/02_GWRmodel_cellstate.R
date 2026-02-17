@@ -20,7 +20,7 @@
 #       A named list of Visium samples with EcoTyper visium mode cell state output.
 #       Each element must contain:
 #         - $cellstate_raw / $cellstate_norm(normalized)
-#             (ID, pixel_x, pixel_y, Label [TLS / NonTLS], cell state abundances)
+#             (ID, array_x, array_y, Label [TLS / NonTLS], cell state abundances)
 #         - $hs
 #             (sparse matrix of gene expression for each spot)
 #
@@ -76,14 +76,14 @@ library(stringr)
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1: VARIABLE SCREENING AND GWR MODEL FITTING
 # ═══════════════════════════════════════════════════════════════════════════
-load("../data/example_data/combined_obj.RData")
+load("./combined_obj.RData")
 ## 1.1 Prepare combined dataset from all samples ----
 df_all <- purrr::map_dfr(names(combined_obj), function(samp) {
   cs <- combined_obj[[samp]]$cellstate_norm
   if (is.null(cs)) return(NULL)
   
   cs %>%
-    dplyr::select(ID, pixel_x, pixel_y, Label, matches("_S[0-9]+$")) %>%
+    dplyr::select(ID, array_x, array_y, Label, matches("_S[0-9]+$")) %>%  
     mutate(
       Sample = samp,
       y = ifelse(Label == "TLS", 1, 0)
@@ -151,7 +151,7 @@ for (samp in names(combined_obj)) {
   
   # Create spatial data
   fml <- as.formula(paste("y ~", paste(expl, collapse = " + ")))
-  coords <- cs[, c("pixel_x", "pixel_y")]
+  coords <- cs[, c("array_x", "array_y")]  
   rownames(cs) <- cs$ID
   spdf <- SpatialPointsDataFrame(coords, data = cs, proj4string = CRS(NA_character_))
   
@@ -181,11 +181,12 @@ for (samp in names(combined_obj)) {
   message(sprintf("GWR fitted for %s (bandwidth = %.1f)", samp, bw0))
 }
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 2: GWR RESULTS ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════
-
+## 2.0 Removed samples with low heterogeneity(Method)
+exclude_samples <- c("a_1", "b_7", "C01")
+gwr_cand <- gwr_cand[!names(gwr_cand) %in% exclude_samples]
 ## 2.1 Extract coefficients from GWR models ----
 coef_df <- purrr::imap_dfr(gwr_cand, ~{
   tibble::as_tibble(.x$model$SDF@data, rownames = "ID") %>%
@@ -280,10 +281,10 @@ p_impact <- ggplot(plot_df_impact, aes(
   )
 
 suppressWarnings(
-ggsave(plot = p_impact,file = "../output/02_Impact_of_cell_states.pdf", 
-       width    = 10,
-       height   = 12,
-       dpi      = 300))
+  ggsave(plot = p_impact,file = "../output/02_Impact_of_cell_states.pdf", 
+         width    = 10,
+         height   = 12,
+         dpi      = 300))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -446,11 +447,11 @@ suppressWarnings(
 ## 5.1 Prepare B26 data ----
 # Extract cell states
 df26 <- combined_obj$B26$cellstate_raw %>%
-  dplyr::select(ID, pixel_x, pixel_y,
-         PCs_S01, CD8.T_S01, CD4.T_S02,
-         Monocytes.and.Macrophages_S01,
-         Monocytes.and.Macrophages_S08,
-         Label) %>%
+  dplyr::select(ID, array_x, array_y,  # MODIFIED
+                PCs_S01, CD8.T_S01, CD4.T_S02,
+                Monocytes.and.Macrophages_S01,
+                Monocytes.and.Macrophages_S08,
+                Label) %>%
   dplyr::rename(
     PC_S01 = PCs_S01,
     CD8_S01 = CD8.T_S01,
@@ -476,7 +477,7 @@ plot_spatial <- function(var, title, color_low = "lightgrey",
                          color_high = "darkblue", legend_name = NULL) {
   if (is.null(legend_name)) legend_name <- title
   
-  ggplot(df26, aes(x = pixel_x, y = -pixel_y)) +
+  ggplot(df26, aes(x = array_x, y = -array_y)) +  # MODIFIED
     geom_point(aes(color = .data[[var]]), size = 1.2, alpha = 0.9) +
     geom_point(data = filter(df26, isTLS),
                shape = 21, fill = NA, color = "red", 
