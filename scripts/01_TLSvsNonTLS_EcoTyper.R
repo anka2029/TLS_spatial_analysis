@@ -1,5 +1,5 @@
 # ============================================================
-# 01_TLSvsNonTLS_EcoTypern.R
+# 01_TLSvsNonTLS_EcoTyper.R
 #
 # Purpose:
 #   Analyze the association between EcoTyper Carcinoma Ecotypes (CEs)
@@ -206,11 +206,7 @@ ce10_test <- wilcox.test(
 )
 
 # Prepare p-value labels
-p_labels <- data.frame(
-  CE_type = c("CE9", "CE10"),
-  p_label = c("p < 2.2e-16", "p < 2.2e-16"),
-  y_pos   = c(1.15, 1.15)
-)
+p_label = c(format_pvalue(ce9_test$p.value), format_pvalue(ce10_test$p.value))
 
 # Create boxplot with Mann-Whitney test results
 p <- ggplot(ce_long, aes(x = TLS_flag, y = Abundance, fill = TLS_flag)) +
@@ -252,7 +248,7 @@ df_list <- lapply(names(combined_obj), function(samp) {
   samp_obj <- combined_obj[[samp]]
   if (is.null(samp_obj$cellstate_norm) || is.null(samp_obj$ecotype)) return(NULL)
   
-  # MODIFIED: Use array_x and array_y
+  # Use array_x and array_y
   cs  <- samp_obj$cellstate_norm %>% select(ID, array_x, array_y, Label)
   eco <- samp_obj$ecotype %>% 
     as.data.frame() %>% 
@@ -316,21 +312,22 @@ dist_summary <- df_all %>%
     sd     = sd(dist_to_TLS, na.rm = TRUE)
   )
 
-# MODIFIED: Updated description
+#: Updated description
 dist_summary_um <- dist_summary * 100
 print("\nDistance distribution (in micrometers):")
 print(dist_summary_um)
 
 ## ── 3.4 Bin by distance (quartile-based) ────────────────────────────────
-# MODIFIED: Calculate quartiles dynamically from actual data
-all_distances <- df_all %>%
-  filter(Sample %in% valid_samples, dist_to_TLS > 0) %>%
+# Calculate quartiles from non-TLS spots only
+# (TLS spots form a separate bin; consistent with cell state analysis S3.3)
+non_tls_distances <- df_all %>%
+  filter(Sample %in% valid_samples, Label != "TLS") %>%
   pull(dist_to_TLS)
 
 # Calculate quartiles
-q25 <- quantile(all_distances, 0.25, na.rm = TRUE)
-q50 <- quantile(all_distances, 0.50, na.rm = TRUE)
-q75 <- quantile(all_distances, 0.75, na.rm = TRUE)
+q25 <- quantile(non_tls_distances, 0.25, na.rm = TRUE)
+q50 <- quantile(non_tls_distances, 0.50, na.rm = TRUE)
+q75 <- quantile(non_tls_distances, 0.75, na.rm = TRUE)
 
 cat("\nDistance thresholds (array units):\n")
 cat(sprintf("Q25: %.1f (%.0f \u03BCm)\n", q25, q25 * 100))
@@ -435,7 +432,7 @@ ce_colors <- c(
   "CE10" = "#2E86C1", "CE9" = "#5DADE2"
 )
 
-# MODIFIED: Updated plot labels
+#: Updated plot labels
 p1_with_value_labels <- ggplot(df_bin_avg_styled, 
                                aes(x = dist_category, y = mean, group = CE)) +
   geom_line(data = df_bin_avg_styled %>% filter(!is_highlight),

@@ -82,7 +82,7 @@ library(tidyr)
 ########################
 
 # ---- Example data (default) ----
-load("../data//example_data/combined_obj.RData")
+load("../data/example_data/combined_obj.RData")
 
 
 
